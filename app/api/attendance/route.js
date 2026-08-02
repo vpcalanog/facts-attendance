@@ -1,36 +1,6 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-// NOTE: this uses a JSON file on the server's local disk, which is enough
-// for a single-server / self-hosted deployment (e.g. a school's own machine
-// or a small VPS). It will NOT persist on serverless platforms with
-// read-only or ephemeral filesystems (e.g. Vercel's default runtime) —
-// swap readEntries/writeEntries for a real database (Postgres, Supabase,
-// Vercel KV, etc.) before deploying there.
-const DATA_DIR = process.env.ATTENDANCE_DATA_DIR || path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "attendance.json");
-
-function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, "[]", "utf-8");
-}
-
-function readEntries() {
-  ensureStore();
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeEntries(entries) {
-  ensureStore();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(entries, null, 2), "utf-8");
-}
+import { readEntries, appendEntry } from "@/lib/attendanceStore";
+import { getAuthUser } from "@/lib/requireAuth";
 
 const ID_REGEX = /^S20\d{8}$/;
 
@@ -51,14 +21,18 @@ export async function POST(request) {
     );
   }
 
-  const entries = readEntries();
-  const entry = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+  // Auth is OPTIONAL here on purpose: the web kiosk (unauthenticated)
+  // keeps working exactly as before. The mobile app sends a Bearer token,
+  // which — if valid — gets attached so the entry shows who logged it.
+  // If you want to lock this endpoint down to staff-only entirely, swap
+  // this for requireAuth(request) and return early on `response`.
+  const authUser = getAuthUser(request);
+
+  const { entry } = appendEntry({
     studentNumber,
-    timestamp: new Date().toISOString(),
-  };
-  entries.push(entry);
-  writeEntries(entries);
+    loggedBy: authUser ? authUser.username : null,
+    source: authUser ? "mobile" : "web",
+  });
 
   return NextResponse.json({ entry }, { status: 201 });
 }
