@@ -1,0 +1,20 @@
+[
+  {
+    "id": "msbi3j105l7zh4",
+    "name": "Testing",
+    "description": null,
+    "startsAt": null,
+    "courses": [
+      "BSCS",
+      "BSEMC",
+      "BSIT"
+    ],
+    "yearLevels": [
+      "1st Year",
+      "2nd Year"
+    ],
+    "createdBy": "vacalanog",
+    "updatedAt": "2026-08-02T07:50:41.172Z",
+    "createdAt": "2026-08-02T07:50:41.172Z"
+  }
+]

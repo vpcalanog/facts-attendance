@@ -9,7 +9,7 @@ const MAX_BATCH = 500;
 // server. Requires a valid staff session — unlike /api/attendance, there's
 // no anonymous-kiosk use case for this endpoint.
 //
-//   POST { entries: [{ id, studentNumber, timestamp }, ...] }
+//   POST { entries: [{ id, studentNumber, eventId, timestamp }, ...] }
 //     -> upserts each by client-generated id (idempotent, safe to retry)
 //     -> returns { acceptedIds, rejected }
 //
@@ -37,6 +37,10 @@ export async function POST(request) {
     const studentNumber =
       raw && typeof raw.studentNumber === "string" ? raw.studentNumber.trim().toUpperCase() : "";
     const id = raw && typeof raw.id === "string" ? raw.id : null;
+    // Not hard-required: an entry created before events existed, or from
+    // a source without the event concept, can still land here with no
+    // eventId. The Logs screen just won't be able to scope it to an event.
+    const eventId = raw && typeof raw.eventId === "string" ? raw.eventId : null;
 
     if (!id || !ID_REGEX.test(studentNumber)) {
       rejected.push({ id: id || null, reason: "Invalid id or student number format." });
@@ -46,6 +50,7 @@ export async function POST(request) {
     const { entry } = appendEntry({
       id,
       studentNumber,
+      eventId,
       timestamp: typeof raw.timestamp === "string" ? raw.timestamp : undefined,
       loggedBy: user.username,
       source: "mobile",
